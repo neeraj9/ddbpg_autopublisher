@@ -1,0 +1,12 @@
+[Unit]
+Description=DalmatinerDB PostgreSQL Auto Publisher
+After=network.target
+
+[Service]
+User=ddbpg_autopublisher
+Group=ddbpg_autopublisher
+ExecStart=/usr/lib/ddbpg_autopublisher/bin/ddbpg_autopublisher console -noinput +Bd
+
+[Install]
+WantedBy=multi-user.target
+

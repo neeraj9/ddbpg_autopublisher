@@ -1,0 +1,28 @@
+{application, ddbpg_autopublisher,
+ [{description, "An auto populator for DalmatinerDB PostgreSQL indexer"},
+  {vsn, "0.1.0"},
+  {registered, []},
+  {mod, { ddbpg_autopublisher_app, []}},
+  {applications,
+   [kernel,
+    lager,
+    stdlib,
+    ranch,
+    hackney,
+    cowboy,
+    dp_decoder,
+    dqe_idx,
+    dqe_idx_pg,
+    ddb_client,
+    ddb_connection,
+    trie,
+    snappiest,
+    jsone
+   ]},
+  {env,[]},
+  {modules, []},
+
+  {maintainers, []},
+  {licenses, []},
+  {links, []}
+ ]}.

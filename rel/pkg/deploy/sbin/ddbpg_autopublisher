@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+
+/opt/local/ddbpg_autopublisher/bin/ddbpg_autopublisher $@

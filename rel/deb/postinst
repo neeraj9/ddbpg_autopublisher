@@ -1,0 +1,24 @@
+#!/bin/bash
+
+if [ ! -d "/data/dalmatinerproxy" ]; then
+    mkdir -p /data/ddbpg_autopublisher
+fi
+
+if [ ! -d "/data/dalmatinerproxy/log" ]; then
+    mkdir -p /data/ddbpg_autopublisher/log
+fi
+
+# Sort out file permissions
+if [[ $(id dalmatinerproxy 2>/dev/null) ]] ;then
+    chown -R ddbpg_autopublisher:ddbpg_autopublisher /data/ddbpg_autopublisher
+fi
+
+CONFFILE=/data/ddbpg_autopublisher/etc/ddbpg_autopublisher.conf
+
+if [ ! -f "${CONFFILE}" ]
+then
+    echo "Creating new configuration from example file."
+    cp ${CONFFILE}.example ${CONFFILE}
+else
+    echo "Please update your configuration according to the update manual!"
+fi

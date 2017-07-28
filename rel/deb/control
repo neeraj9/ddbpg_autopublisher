@@ -1,0 +1,11 @@
+Package: ddbpg_autopublisher
+Version: 0.1.0
+License: MIT
+Section: base
+Vendor: Project-Fifo
+Maintainer: Project-Fifo <info@project-fifo.net>
+Priority: optional
+Architecture: amd64
+Homepage: http://www.dalmatiner.io
+Description: Dalmatiner PX
+  Distributed TSBD. Woof.
