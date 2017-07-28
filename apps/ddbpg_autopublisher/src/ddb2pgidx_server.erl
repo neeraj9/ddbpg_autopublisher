@@ -120,7 +120,7 @@ handle_call(_Request, _From, State) ->
     {noreply, NewState :: #state{}} |
     {noreply, NewState :: #state{}, timeout() | hibernate} |
     {stop, Reason :: term(), NewState :: #state{}}).
-handle_cast({metrics, Bucket, Metrics}, State) ->
+handle_cast({metrics, _Bucket, Metrics}, State) ->
     %% TODO publish to pg-idx tables
     {noreply, State#state{metrics = Metrics}};
 handle_cast(_Request, State) ->
