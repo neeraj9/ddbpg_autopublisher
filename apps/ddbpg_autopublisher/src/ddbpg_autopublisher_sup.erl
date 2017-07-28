@@ -10,6 +10,8 @@
 
 -behaviour(supervisor).
 
+-include("ddbpg_autopublisher.hrl").
+
 %% API
 -export([start_link/0]).
 
@@ -17,6 +19,9 @@
 -export([init/1]).
 
 -define(SERVER, ?MODULE).
+
+%% Helper macro for declaring children of supervisor
+-define(CHILD(I, Name, Index, Type), {Name, {I, start_link, [Index]}, permanent, 5000, Type, [I]}).
 
 %%%===================================================================
 %%% API functions
@@ -63,14 +68,10 @@ init([]) ->
 
     SupFlags = {RestartStrategy, MaxRestarts, MaxSecondsBetweenRestarts},
 
-    Restart = permanent,
-    Shutdown = 2000,
-    Type = worker,
-
-    DDB2PgIdxService = {ddb2pgidx_server, {oms_ddb2pgidx_server, start_link, []},
-        Restart, Shutdown, Type, [ddb2pgidx_server]},
-
-    {ok, {SupFlags, [DDB2PgIdxService]}}.
+    {ok, DdbConfig} = application:get_env(?CORE_APPLICATION_NAME, ddbconfig),
+    NumWorkers = length(proplists:get_value(buckets, DdbConfig)),
+    Specs = [?CHILD(ddb2pgidx_server, proplists:get_value(name, lists:nth(Index, proplists:get_value(buckets, DdbConfig))), Index, worker) || Index <- lists:seq(1, NumWorkers)],
+    {ok, { SupFlags, Specs} }.
 
 %%%===================================================================
 %%% Internal functions
