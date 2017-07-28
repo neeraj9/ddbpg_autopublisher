@@ -81,7 +81,8 @@ init([BucketConfig]) ->
     lager:info("~p config=~p", [?SERVER, BucketConfig]),
     case proplists:get_value(enabled, BucketConfig, false) of
         true ->
-            {DDBHost, DDBPort} = proplists:get_value(ddb_endpoint, BucketConfig),
+            {DDBHost, DDBPort} = proplists:get_value(
+                ddb_endpoint, BucketConfig),
             DDBBucketS = proplists:get_value(ddb_bucket, BucketConfig),
             DDBBucket = list_to_binary(DDBBucketS),
             Interval = proplists:get_value(interval, BucketConfig),
@@ -151,22 +152,29 @@ handle_info({timeout, _R, tick},
                                     true ->
                                         ListRefreshPid;
                                     false ->
-                                        spawn_link(?MODULE, receive_ddb_metrics, [DDBHost, DDBPort, DDBBucket, self()])
+                                        spawn_link(?MODULE,
+                                            receive_ddb_metrics,
+                                            [DDBHost, DDBPort,
+                                                DDBBucket, self()])
                                 end;
                             _ ->
-                                spawn_link(?MODULE, receive_ddb_metrics, [DDBHost, DDBPort, DDBBucket, self()])
+                                spawn_link(?MODULE,
+                                    receive_ddb_metrics,
+                                    [DDBHost, DDBPort, DDBBucket, self()])
                             end,
     Ref = erlang:start_timer(FlushInterval, self(), tick),
     {noreply, State#state{ref = Ref,
         list_refresh_pid = NewListRefreshPid}};
-handle_info(timeout, State = #state{ddb_host = Host, ddb_port = Port, bucket = Bucket,
-    interval = Interval}) ->
+handle_info(timeout, State = #state{ddb_host = Host,
+    ddb_port = Port, bucket = Bucket, interval = Interval}) ->
     %% refresh the list immediately for local caching
-    ListRefreshPid = spawn_link(node(), ?MODULE, receive_ddb_metrics, [Host, Port, Bucket, self()]),
+    ListRefreshPid = spawn_link(node(), ?MODULE, receive_ddb_metrics,
+        [Host, Port, Bucket, self()]),
     Ref = erlang:start_timer(Interval, self(), tick),
     {noreply, State#state{ref = Ref,
         list_refresh_pid = ListRefreshPid}};
-handle_info({'EXIT', ListRefreshPid, _}, #state{list_refresh_pid = ListRefreshPid} = State) ->
+handle_info({'EXIT', ListRefreshPid, _},
+    #state{list_refresh_pid = ListRefreshPid} = State) ->
     {noreply, State#state{list_refresh_pid = undefined}};
 handle_info(_Info, State) ->
     {noreply, State}.

@@ -70,7 +70,11 @@ init([]) ->
 
     {ok, DdbConfig} = application:get_env(?CORE_APPLICATION_NAME, ddbconfig),
     NumWorkers = length(proplists:get_value(buckets, DdbConfig)),
-    Specs = [?CHILD(ddb2pgidx_server, proplists:get_value(name, lists:nth(Index, proplists:get_value(buckets, DdbConfig))), Index, worker) || Index <- lists:seq(1, NumWorkers)],
+    Specs = [?CHILD(ddb2pgidx_server,
+        proplists:get_value(name,
+            lists:nth(Index,
+                proplists:get_value(buckets, DdbConfig))),
+        Index, worker) || Index <- lists:seq(1, NumWorkers)],
     {ok, { SupFlags, Specs} }.
 
 %%%===================================================================
