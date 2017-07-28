@@ -9,3 +9,48 @@
 {mapping, "idx.backend", "dqe_idx.lookup_module",
  [{default, "dqe_idx_pg"},
   {datatype, atom}]}.
+
+{mapping, "ddb.enabled", "ddbpg_autopublisher.ddbconfig.enabled",
+ [{default, true},
+  {datatype, flag}]}.
+
+{mapping, "ddb.endpoint", "ddbpg_autopublisher.ddbconfig.endpoint",
+ [{default, {"127.0.0.1", 5555}},
+  {datatype, ip}]}.
+
+{mapping, "ddb.buckets.$id.name", "ddbpg_autopublisher.ddbconfig.buckets",
+ [{default, ddb2pgidx1_worker},
+  {datatype, atom},
+  {include_default, "1"}]}.
+
+{mapping, "ddb.buckets.$id.bucket", "ddbpg_autopublisher.ddbconfig.buckets",
+ [{default, "oms"},
+  {datatype, string},
+  {include_default, "1"}]}.
+
+
+{mapping, "ddb.buckets.$id.interval", "ddbpg_autopublisher.ddbconfig.buckets",
+ [{default, 10000},
+  {datatype, integer},
+  {include_default, "1"}]}.
+
+
+{translation,
+  "ddbpg_autopublisher.ddbconfig.buckets",
+  fun(Conf) ->
+   SomeList = lists:filter(
+     fun({K, _V}) ->
+       %%cuttlefish_variable:is_fuzzy_match(K, string:tokens("ddb.buckets.$id.name", "."))
+       % {["ddb","buckets","1","interval"],10000}
+       case K of
+         ["ddb", "buckets", _, _] -> true;
+         _ -> false
+       end
+     end,
+     Conf),
+   M = lists:foldl(fun({[_, _, Id, Name], V}, AccIn) ->
+     OldMap = maps:get(Id, AccIn, #{}),
+     AccIn#{Id => OldMap#{list_to_atom(Name) => V}}
+               end, #{}, SomeList),
+   [maps:to_list(X) || X <- maps:values(M)]
+  end}.
