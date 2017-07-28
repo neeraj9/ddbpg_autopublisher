@@ -10,7 +10,7 @@ old entries in case of expiry of metrics.
 There is one actor per bucket, which will observe it for
 changes.
 
-> [ddbpg_autopublisher](https://github.com/dalmatinerdb/ddbpg_autopublisher) is used
+> [ddb_proxy](https://github.com/dalmatinerdb/ddb_proxy) is used
 > as the bootstrap for this project.
 
 Build
