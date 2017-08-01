@@ -56,7 +56,7 @@ start_link(Index) ->
     BucketConfig = lists:nth(Index, proplists:get_value(buckets, DdbConfig)),
     Name = proplists:get_value(name, BucketConfig),
     lager:info("~p starting actor ~p", [?SERVER, Name]),
-    gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
+    gen_server:start_link({local, Name}, ?MODULE, [DdbConfig, BucketConfig], []).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -76,14 +76,14 @@ start_link(Index) ->
 -spec(init(Args :: term()) ->
     {ok, State :: #state{}} | {ok, State :: #state{}, timeout() | hibernate} |
     {stop, Reason :: term()} | ignore).
-init([BucketConfig]) ->
+init([DdbConfig, BucketConfig]) ->
     process_flag(trap_exit, true),
-    lager:info("~p config=~p", [?SERVER, BucketConfig]),
-    case proplists:get_value(enabled, BucketConfig, false) of
+    lager:info("~p DdbConfig=~p, BucketConfig=~p", [?SERVER, DdbConfig, BucketConfig]),
+    case proplists:get_value(enabled, DdbConfig, false) of
         true ->
             {DDBHost, DDBPort} = proplists:get_value(
-                ddb_endpoint, BucketConfig),
-            DDBBucketS = proplists:get_value(ddb_bucket, BucketConfig),
+                endpoint, DdbConfig),
+            DDBBucketS = proplists:get_value(bucket, BucketConfig),
             DDBBucket = list_to_binary(DDBBucketS),
             Interval = proplists:get_value(interval, BucketConfig),
             {ok, #state{interval = Interval, bucket = DDBBucket,
@@ -121,8 +121,11 @@ handle_call(_Request, _From, State) ->
     {noreply, NewState :: #state{}} |
     {noreply, NewState :: #state{}, timeout() | hibernate} |
     {stop, Reason :: term(), NewState :: #state{}}).
-handle_cast({metrics, _Bucket, Metrics}, State) ->
+handle_cast({metrics, Bucket, Metrics} = _Request, State) ->
+    lager:debug("handle_cast(~p, ~p)", [_Request, State]),
     %% TODO publish to pg-idx tables
+    TimeSec = erlang:system_time(second),
+    lists:foreach(fun(E) -> add_metric_to_idx(TimeSec, Bucket, E) end, Metrics),
     {noreply, State#state{metrics = Metrics}};
 handle_cast(_Request, State) ->
     lager:debug("handle_cast(~p, ~p)", [_Request, State]),
@@ -142,10 +145,12 @@ handle_cast(_Request, State) ->
     {noreply, NewState :: #state{}} |
     {noreply, NewState :: #state{}, timeout() | hibernate} |
     {stop, Reason :: term(), NewState :: #state{}}).
-handle_info({timeout, _R, tick},
+handle_info({timeout, _R, tick} = _Info,
     #state{ref = _R, interval = FlushInterval, bucket = DDBBucket,
         ddb_host = DDBHost, ddb_port = DDBPort,
         list_refresh_pid = ListRefreshPid} = State) ->
+    lager:debug("handle_info(~p, ~p)", [_Info, State]),
+    lager:debug("ListRefreshPid=~p", [ListRefreshPid]),
     NewListRefreshPid = case is_pid(ListRefreshPid) of
                             true ->
                                 case is_process_alive(ListRefreshPid) of
@@ -167,16 +172,20 @@ handle_info({timeout, _R, tick},
         list_refresh_pid = NewListRefreshPid}};
 handle_info(timeout, State = #state{ddb_host = Host,
     ddb_port = Port, bucket = Bucket, interval = Interval}) ->
+    lager:debug("handle_info(~p, ~p)", [timeout, State]),
+    lager:debug("starting tick timer"),
     %% refresh the list immediately for local caching
     ListRefreshPid = spawn_link(node(), ?MODULE, receive_ddb_metrics,
         [Host, Port, Bucket, self()]),
     Ref = erlang:start_timer(Interval, self(), tick),
     {noreply, State#state{ref = Ref,
         list_refresh_pid = ListRefreshPid}};
-handle_info({'EXIT', ListRefreshPid, _},
+handle_info({'EXIT', ListRefreshPid, _} = _Info,
     #state{list_refresh_pid = ListRefreshPid} = State) ->
+    lager:debug("handle_info(~p, ~p)", [_Info, State]),
     {noreply, State#state{list_refresh_pid = undefined}};
 handle_info(_Info, State) ->
+    lager:debug("handle_info(~p, ~p)", [_Info, State]),
     {noreply, State}.
 
 %%--------------------------------------------------------------------
@@ -224,3 +233,28 @@ receive_ddb_metrics(Host, Port, Bucket, CallbackPid) ->
                {error, timeout, DDB1} -> DDB1
            end,
     ddb_tcp:close(DDB2).
+
+-spec add_metric_to_idx(TimeSec :: pos_integer(), Bucket :: binary(), EncodedMetricKey :: binary()) ->
+    ok | {error, Error :: term()}.
+add_metric_to_idx(TimeSec, Bucket, EncodedMetricKey) ->
+    Key = dproto:metric_to_list(EncodedMetricKey),
+    MetricParts = lists:filter(fun(E) -> binary:split(E, <<"=">>, [trim]) == [E] end, Key),
+    BaseTags = lists:filter(fun(E) -> binary:split(E, <<"=">>, [trim]) =/= [E] end, Key),
+    #{tags := Tags} = expand_tags(#{tags => BaseTags, key => Key}),
+    lager:debug("Adding ~p", [Key]),
+    lager:debug("dqe_idx:add(~p, ~p, ~p, ~p, ~p, ~p)", [Bucket, MetricParts, Bucket, Key, TimeSec, Tags]),
+    dqe_idx:add(Bucket, MetricParts, Bucket, Key, TimeSec, Tags).
+
+%% Taken from ddb_proxy/apps/ddb_proxy/src/dp_util.erl
+expand_tags(M = #{tags := Tags, key := Metric}) ->
+    L = {<<"ddb">>, <<"key_length">>,
+        integer_to_binary(length(Metric))},
+    M#{tags => add_tags(1, Metric, [L | Tags])}.
+
+%% Taken from ddb_proxy/apps/ddb_proxy/src/dp_util.erl
+add_tags(_, [], Tags) ->
+    Tags;
+add_tags(N, [E | R], Tags) ->
+    PosBin = integer_to_binary(N),
+    T = {<<"ddb">>, <<"part_", PosBin/binary>>, E},
+    add_tags(N + 1, R, [T | Tags]).
