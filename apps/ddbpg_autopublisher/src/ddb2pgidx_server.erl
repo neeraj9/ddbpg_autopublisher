@@ -24,6 +24,7 @@
     code_change/3]).
 
 -export([receive_ddb_metrics/4]).
+-export([expand_tags/1, add_tags/3]).
 
 -define(SERVER, ?MODULE).
 
@@ -239,7 +240,12 @@ receive_ddb_metrics(Host, Port, Bucket, CallbackPid) ->
 add_metric_to_idx(TimeSec, Bucket, EncodedMetricKey) ->
     Key = dproto:metric_to_list(EncodedMetricKey),
     MetricParts = lists:filter(fun(E) -> binary:split(E, <<"=">>, [trim]) == [E] end, Key),
-    BaseTags = lists:filter(fun(E) -> binary:split(E, <<"=">>, [trim]) =/= [E] end, Key),
+    BaseTags = lists:foldr(fun(E, AccIn) ->
+        case binary:split(E, <<"=">>, [trim]) of
+            [E] -> AccIn;
+            [K, V] -> [{<<>>, K, V} | AccIn]
+        end
+                           end, [], Key),
     #{tags := Tags} = expand_tags(#{tags => BaseTags, key => Key}),
     lager:debug("Adding ~p", [Key]),
     lager:debug("dqe_idx:add(~p, ~p, ~p, ~p, ~p, ~p)", [Bucket, MetricParts, Bucket, Key, TimeSec, Tags]),
