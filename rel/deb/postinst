@@ -10,7 +10,7 @@ fi
 
 # Sort out file permissions
 if [[ $(id dalmatinerproxy 2>/dev/null) ]] ;then
-    chown -R ddbpg_autopublisher:ddbpg_autopublisher /data/ddbpg_autopublisher
+    chown -R dalmatiner:dalmatiner /data/ddbpg_autopublisher
 fi
 
 CONFFILE=/data/ddbpg_autopublisher/etc/ddbpg_autopublisher.conf
