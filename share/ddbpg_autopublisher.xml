@@ -4,9 +4,9 @@
         Copyright 2012 Project FiFo / Heinz N. Gies
 -->
 
-<service_bundle type='manifest' name='dalmatiner-px'>
+<service_bundle type='manifest' name='dalmatiner-ddbpgap'>
   <service
-    name='dalmatiner/px'
+    name='dalmatiner/ddbpgap'
     type='service'
     version='0.1.0'>
     <create_default_instance enabled='false' />
