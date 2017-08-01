@@ -24,7 +24,7 @@
   {include_default, "1"}]}.
 
 {mapping, "ddb.buckets.$id.bucket", "ddbpg_autopublisher.ddbconfig.buckets",
- [{default, "oms"},
+ [{default, "bucketname"},
   {datatype, string},
   {include_default, "1"}]}.
 
